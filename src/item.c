@@ -668,6 +668,11 @@ void ClearBag(void)
     }
 }
 
+void ItemId_GetHoldEffectParam_Script()
+{
+    VarSet(VAR_RESULT, ItemId_GetHoldEffectParam(VarGet(VAR_0x8004)));
+}
+
 u16 CountTotalItemQuantityInBag(u16 itemId)
 {
     u16 i;

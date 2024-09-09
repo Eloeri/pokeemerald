@@ -104,6 +104,8 @@ void FieldGetPlayerInput(struct FieldInput *input, u16 newKeys, u16 heldKeys)
                 input->pressedAButton = TRUE;
             if (newKeys & B_BUTTON)
                 input->pressedBButton = TRUE;
+            if (newKeys & R_BUTTON)
+                input->pressedRButton = TRUE;
         }
 
         if (heldKeys & (DPAD_UP | DPAD_DOWN | DPAD_LEFT | DPAD_RIGHT))
@@ -185,7 +187,7 @@ int ProcessPlayerFieldInput(struct FieldInput *input)
         ShowStartMenu();
         return TRUE;
     }
-    if (input->pressedSelectButton && UseRegisteredKeyItemOnField() == TRUE)
+    if ((input->pressedSelectButton | input->pressedRButton) && UseRegisteredKeyItemOnField() == TRUE)
         return TRUE;
 
     return FALSE;
@@ -662,7 +664,7 @@ static bool8 UpdatePoisonStepCounter(void)
 void RestartWildEncounterImmunitySteps(void)
 {
     // Starts at 0 and counts up to 4 steps.
-    sWildEncounterImmunitySteps = 0;
+    sWildEncounterImmunitySteps = 4;
 }
 
 static bool8 CheckStandardWildEncounter(u16 metatileBehavior)
@@ -676,7 +678,7 @@ static bool8 CheckStandardWildEncounter(u16 metatileBehavior)
 
     if (StandardWildEncounter(metatileBehavior, sPrevMetatileBehavior) == TRUE)
     {
-        sWildEncounterImmunitySteps = 0;
+        sWildEncounterImmunitySteps = 4;
         sPrevMetatileBehavior = metatileBehavior;
         return TRUE;
     }

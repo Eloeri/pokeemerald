@@ -987,7 +987,7 @@ static u8 SaveConfirmSaveCallback(void)
     }
     else
     {
-        ShowSaveMessage(gText_ConfirmSave, SaveYesNoCallback);
+        ShowSaveMessage(gText_SavingDontTurnOff, SaveDoSaveCallback);
     }
 
     return SAVE_IN_PROGRESS;
@@ -1040,7 +1040,7 @@ static u8 SaveFileExistsCallback(void)
     }
     else
     {
-        ShowSaveMessage(gText_AlreadySavedFile, SaveConfirmOverwriteCallback);
+        sSaveDialogCallback = SaveSavingMessageCallback;
     }
 
     return SAVE_IN_PROGRESS;

@@ -1342,13 +1342,13 @@ static bool8 SlotTask_HandleBetInput(struct Task *task)
 {
     s16 i;
 
-    if (JOY_NEW(SELECT_BUTTON))
+    if (JOY_HELD(SELECT_BUTTON))
     {
         OpenInfoBox(DIG_DISPLAY_INSERT_BET);
         sSlotMachine->state = SLOTTASK_WAIT_INFO_BOX;
     }
     // Try to bet the max amount
-    else if (JOY_NEW(R_BUTTON))
+    else if (JOY_HELD(R_BUTTON))
     {
         if (sSlotMachine->coins - (MAX_BET - sSlotMachine->bet) >= 0)
         {
@@ -1368,7 +1368,7 @@ static bool8 SlotTask_HandleBetInput(struct Task *task)
     else
     {
         // Increase bet
-        if (JOY_NEW(DPAD_DOWN) && sSlotMachine->coins != 0)
+        if (JOY_HELD(DPAD_DOWN) && sSlotMachine->coins != 0)
         {
             PlaySE(SE_SHOP);
             LightenBetTiles(sSlotMachine->bet);
@@ -1377,7 +1377,7 @@ static bool8 SlotTask_HandleBetInput(struct Task *task)
         }
 
         // Maxed bet or finished betting
-        if (sSlotMachine->bet >= MAX_BET || (sSlotMachine->bet != 0 && JOY_NEW(A_BUTTON)))
+        if (sSlotMachine->bet >= MAX_BET || (sSlotMachine->bet != 0 && JOY_HELD(A_BUTTON)))
             sSlotMachine->state = SLOTTASK_START_SPIN;
 
         // Quit prompt
@@ -1400,7 +1400,7 @@ static bool8 SlotTask_PrintMsg_Need3Coins(struct Task *task)
 // SLOTTASK_WAIT_MSG_NEED_3_COINS
 static bool8 SlotTask_WaitMsg_Need3Coins(struct Task *task)
 {
-    if (JOY_NEW(A_BUTTON | B_BUTTON))
+    if (JOY_HELD(A_BUTTON | B_BUTTON))
     {
         ClearDialogWindowAndFrame(0, TRUE);
         sSlotMachine->state = SLOTTASK_BET_INPUT;
@@ -1471,7 +1471,7 @@ static bool8 SlotTask_ResetBiasFailure(struct Task *task)
 // SLOTTASK_WAIT_REEL_STOP
 static bool8 SlotTask_WaitReelStop(struct Task *task)
 {
-    if (JOY_NEW(A_BUTTON))
+    if (JOY_HELD(A_BUTTON))
     {
         PlaySE(SE_CONTEST_PLACE);
         StopSlotReel(sSlotMachine->currentReel);
@@ -1697,7 +1697,7 @@ static bool8 SlotTask_PrintMsg_MaxCoins(struct Task *task)
 // SLOTTASK_WAIT_MSG_MAX_COINS
 static bool8 SlotTask_WaitMsg_MaxCoins(struct Task *task)
 {
-    if (JOY_NEW(A_BUTTON | B_BUTTON))
+    if (JOY_HELD(A_BUTTON | B_BUTTON))
     {
         ClearDialogWindowAndFrame(0, TRUE);
         sSlotMachine->state = SLOTTASK_BET_INPUT;
@@ -1718,7 +1718,7 @@ static bool8 SlotTask_PrintMsg_NoMoreCoins(struct Task *task)
 // SLOTTASK_WAIT_MSG_NO_MORE_COINS
 static bool8 SlotTask_WaitMsg_NoMoreCoins(struct Task *task)
 {
-    if (JOY_NEW(A_BUTTON | B_BUTTON))
+    if (JOY_HELD(A_BUTTON | B_BUTTON))
     {
         ClearDialogWindowAndFrame(0, TRUE);
         sSlotMachine->state = SLOTTASK_END;
@@ -3934,7 +3934,7 @@ static void InfoBox_AddText(struct Task *task)
 
 static void InfoBox_WaitInput(struct Task *task)
 {
-    if (JOY_NEW(B_BUTTON | SELECT_BUTTON))
+    if (JOY_HELD(B_BUTTON | SELECT_BUTTON))
     {
         FillWindowPixelBuffer(1, PIXEL_FILL(0));
         ClearWindowTilemap(1);

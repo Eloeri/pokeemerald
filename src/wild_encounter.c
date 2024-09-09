@@ -556,6 +556,11 @@ bool8 StandardWildEncounter(u16 curMetatileBehavior, u16 prevMetatileBehavior)
 
     if (sWildEncountersDisabled == TRUE)
         return FALSE;
+    // Check if the A button is being pressed
+    if (JOY_HELD(A_BUTTON))
+    {
+        return FALSE; // Skip wild encounter if A button is pressed
+    }
 
     headerId = GetCurrentMapWildMonHeaderId();
     if (headerId == HEADER_NONE)
