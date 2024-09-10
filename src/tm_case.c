@@ -14,6 +14,8 @@
 #include "link.h"
 #include "money.h"
 #include "palette.h"
+#include "pokemon_icon.h"
+#include "pokemon_summary_screen.h"
 #include "pokemon_storage_system.h"
 #include "party_menu.h"
 #include "data.h"
@@ -68,6 +70,8 @@ static EWRAM_DATA void * sTilemapBuffer = NULL; // tilemap buffer
 static EWRAM_DATA struct ListMenuItem * sListMenuItemsBuffer = NULL;
 static EWRAM_DATA u8 (* sListMenuStringsBuffer)[29] = NULL;
 static EWRAM_DATA u16 * sTMSpritePaletteBuffer = NULL;
+static EWRAM_DATA u8    spriteIdData[PARTY_SIZE] = {};
+static EWRAM_DATA u16   spriteIdPalette[PARTY_SIZE] = {};
 
 static void CB2_SetUpTMCaseUI_Blocking(void);
 static bool8 DoSetUpTMCaseUI(void);
@@ -98,16 +102,6 @@ static void Subtask_CloseContextMenuAndReturnToMain(u8 taskId);
 static void TMHMContextMenuAction_Exit(u8 taskId);
 static void Task_SelectTMAction_Type1(u8 taskId);
 static void Task_SelectTMAction_Type3(u8 taskId);
-// static void Task_SelectTMAction_FromSellMenu(u8 taskId);
-// static void Task_AskConfirmSaleWithAmount(u8 taskId);
-// static void Task_PlaceYesNoBox(u8 taskId);
-// static void Task_SaleOfTMsCanceled(u8 taskId);
-// static void Task_InitQuantitySelectUI(u8 taskId);
-// static void SellTM_PrintQuantityAndSalePrice(s16 quantity, s32 value);
-// static void Task_QuantitySelect_HandleInput(u8 taskId);
-// static void Task_PrintSaleConfirmedText(u8 taskId);
-// static void Task_DoSaleOfTMs(u8 taskId);
-// static void Task_AfterSale_ReturnToList(u8 taskId);
 static void InitWindowTemplatesAndPals(void);
 static void AddTextPrinterParameterized_ColorByIndex(u8 windowId, u8 fontId, const u8 * str, u8 x, u8 y, u8 letterSpacing, u8 lineSpacing, u8 speed, u8 colorIdx);
 static void TMCase_SetWindowBorder1(u8 windowId);
@@ -129,6 +123,9 @@ static void UpdateTMSpritePosition(struct Sprite * sprite, u8 var);
 static void InitSelectedTMSpriteData(u8 a0, u16 itemId);
 static void SpriteCB_MoveTMSpriteInCase(struct Sprite * sprite);
 static void LoadTMTypePalettes(void);
+static void DrawPartyMonIcons(void);
+static void TintPartyMonIcons(u8 tm);
+static void DestroyPartyMonIcons(void);
 
 static const struct BgTemplate sBGTemplates[] = {
     {
@@ -191,7 +188,7 @@ static const u8 sTMCaseTextColors[][3] = {
 };
 
 static const struct WindowTemplate sWindowTemplates[] = {
-    {0x00, 0x0a, 0x01, 0x13, 0x0a, 0x0f, 0x0081},
+    {0x00, 0x0e, 0x01, 0x0f, 0x0a, 0x0f, 0x0081},
     {0x00, 0x0c, 0x0c, 0x12, 0x08, 0x0a, 0x013f},
     {0x01, 0x05, 0x0f, 0x0f, 0x04, 0x0f, 0x01f9},
     {0x00, 0x00, 0x01, 0x0a, 0x02, 0x0f, 0x0235},
@@ -368,6 +365,7 @@ static bool8 DoSetUpTMCaseUI(void)
         break;
     case 11:
         DrawMoveInfoUIMarkers();
+        DrawPartyMonIcons();
         gMain.state++;
         break;
     case 12:
@@ -389,7 +387,7 @@ static bool8 DoSetUpTMCaseUI(void)
         gMain.state++;
         break;
     case 16:
-        sTMCaseDynamicResources->tmSpriteId = CreateTMSprite(BagGetItemIdByPocketPosition(POCKET_TM_HM, sTMCaseStaticResources.scrollOffset + sTMCaseStaticResources.selectedRow));
+        // sTMCaseDynamicResources->tmSpriteId = CreateTMSprite(BagGetItemIdByPocketPosition(POCKET_TM_HM, sTMCaseStaticResources.scrollOffset + sTMCaseStaticResources.selectedRow));
         gMain.state++;
         break;
     case 17:
@@ -454,7 +452,7 @@ static bool8 HandleLoadTMCaseGraphicsAndPalettes(void)
         }
         break;
     case 2:
-        LZDecompressWram(gUnknown_8E84B70, GetBgTilemapBuffer(1));
+        // LZDecompressWram(gUnknown_8E84B70, GetBgTilemapBuffer(1)); //TM case bg graphic
         sTMCaseDynamicResources->seqId++;
         break;
     case 3:
@@ -469,7 +467,7 @@ static bool8 HandleLoadTMCaseGraphicsAndPalettes(void)
         sTMCaseDynamicResources->seqId++;
         break;
     default:
-        LoadTMTypePalettes();
+        //LoadTMTypePalettes();
         sTMCaseDynamicResources->seqId = 0;
         return TRUE;
     }
@@ -480,7 +478,7 @@ static bool8 HandleLoadTMCaseGraphicsAndPalettes(void)
 static void CreateTMCaseListMenuBuffers(void)
 {
     struct BagPocket * pocket = &gBagPockets[POCKET_TM_HM - 1];
-    sListMenuItemsBuffer = Alloc((pocket->capacity + 1) * sizeof(struct ListMenuItem));
+    sListMenuItemsBuffer = Alloc((pocket->capacity) * sizeof(struct ListMenuItem));
     sListMenuStringsBuffer = Alloc(sTMCaseDynamicResources->numTMs * 29);
 }
 
@@ -495,10 +493,10 @@ static void InitTMCaseListMenuItems(void)
         sListMenuItemsBuffer[i].name = sListMenuStringsBuffer[i];
         sListMenuItemsBuffer[i].id = i;
     }
-    sListMenuItemsBuffer[i].name = gText_Close;
-    sListMenuItemsBuffer[i].id = -2;
+    // sListMenuItemsBuffer[i].name = gText_Close;
+    // sListMenuItemsBuffer[i].id = -2;
     gMultiuseListMenuTemplate.items = sListMenuItemsBuffer;
-    gMultiuseListMenuTemplate.totalItems = sTMCaseDynamicResources->numTMs + 1;
+    gMultiuseListMenuTemplate.totalItems = sTMCaseDynamicResources->numTMs;
     gMultiuseListMenuTemplate.windowId = 0;
     gMultiuseListMenuTemplate.header_X = 0;
     gMultiuseListMenuTemplate.item_X = 8;
@@ -534,7 +532,7 @@ static void GetTMNumberAndMoveString(u8 * dest, u16 itemId)
         StringAppend(gStringVar4, gStringVar1);
     }
     StringAppend(gStringVar4, sText_SingleSpace);
-    StringAppend(gStringVar4, gText_FontNormal);
+    StringAppend(gStringVar4, gText_FontShort);
     StringAppend(gStringVar4, gMoveNames[ItemIdToBattleMoveId(itemId)]);
     StringCopy(dest, gStringVar4);
 }
@@ -551,7 +549,7 @@ static void TMCase_MoveCursorFunc(s32 itemIndex, bool8 onInit, struct ListMenu *
     if (onInit != TRUE)
     {
         PlaySE(SE_SELECT);
-        InitSelectedTMSpriteData(sTMCaseDynamicResources->tmSpriteId, itemId);
+        // InitSelectedTMSpriteData(sTMCaseDynamicResources->tmSpriteId, itemId);
     }
     TMCase_MoveCursor_UpdatePrintedDescription(itemIndex);
     TMCase_MoveCursor_UpdatePrintedTMInfo(itemId);
@@ -563,9 +561,9 @@ static void TMCase_ItemPrintFunc(u8 windowId, u32 itemId, u8 y)
     {
         if (!ItemId_GetImportance(BagGetItemIdByPocketPosition(POCKET_TM_HM, itemId)))
         {
-            ConvertIntToDecimalStringN(gStringVar1, BagGetQuantityByPocketPosition(POCKET_TM_HM, itemId), STR_CONV_MODE_RIGHT_ALIGN, 3);
-            StringExpandPlaceholders(gStringVar4, gText_xVar1);
-            AddTextPrinterParameterized_ColorByIndex(windowId, 0, gStringVar4, 0x7E, y, 0, 0, 0xFF, 1);
+            // ConvertIntToDecimalStringN(gStringVar1, BagGetQuantityByPocketPosition(POCKET_TM_HM, itemId), STR_CONV_MODE_RIGHT_ALIGN, 3);
+            // StringExpandPlaceholders(gStringVar4, gText_xVar1);
+            // AddTextPrinterParameterized_ColorByIndex(windowId, 0, gStringVar4, 0x7E, y, 0, 0, 0xFF, 1);
         }
         else
         {
@@ -577,9 +575,10 @@ static void TMCase_ItemPrintFunc(u8 windowId, u32 itemId, u8 y)
 static void TMCase_MoveCursor_UpdatePrintedDescription(s32 itemIndex)
 {
     const u8 * str;
+    u16 itemId = BagGetItemIdByPocketPosition(POCKET_TM_HM, itemIndex);
     if (itemIndex != -2)
     {
-        str = ItemId_GetDescription(BagGetItemIdByPocketPosition(POCKET_TM_HM, itemIndex));
+        str = ItemId_GetDescription(itemId);
     }
     else
     {
@@ -587,6 +586,9 @@ static void TMCase_MoveCursor_UpdatePrintedDescription(s32 itemIndex)
     }
     FillWindowPixelBuffer(1, 0);
     AddTextPrinterParameterized_ColorByIndex(1, 2, str, 2, 3, 1, 0, 0, 0);
+
+    // update icons
+    TintPartyMonIcons(itemId - ITEM_TM01);
 }
 
 static void FillBG2RowWithPalette_2timesNplus1(s32 a0)
@@ -615,7 +617,7 @@ static void PrintListMenuCursorAt_WithColorIdx(u8 a0, u8 a1)
 
 static void CreateTMCaseScrollIndicatorArrowPair_Main(void)
 {
-    sTMCaseDynamicResources->scrollIndicatorArrowPairId = AddScrollIndicatorArrowPairParameterized(2, 0xA0, 0x08, 0x58, sTMCaseDynamicResources->numTMs - sTMCaseDynamicResources->maxTMsShown + 1, 0x6E, 0x6E, &sTMCaseStaticResources.scrollOffset);
+    sTMCaseDynamicResources->scrollIndicatorArrowPairId = AddScrollIndicatorArrowPairParameterized(2, 0xA0, 0x08, 0x58, sTMCaseDynamicResources->numTMs - sTMCaseDynamicResources->maxTMsShown, 0x6E, 0x6E, &sTMCaseStaticResources.scrollOffset);
 }
 
 static void CreateTMCaseScrollIndicatorArrowPair_SellQuantitySelect(void)
@@ -653,19 +655,19 @@ static void TMCaseSetup_GetTMCount(void)
             break;
         sTMCaseDynamicResources->numTMs++;
     }
-    sTMCaseDynamicResources->maxTMsShown = min(sTMCaseDynamicResources->numTMs + 1, 5);
+    sTMCaseDynamicResources->maxTMsShown = min(sTMCaseDynamicResources->numTMs, 5);
 }
 
 static void TMCaseSetup_InitListMenuPositions(void)
 {
     if (sTMCaseStaticResources.scrollOffset != 0)
     {
-        if (sTMCaseStaticResources.scrollOffset + sTMCaseDynamicResources->maxTMsShown > sTMCaseDynamicResources->numTMs + 1)
-            sTMCaseStaticResources.scrollOffset = sTMCaseDynamicResources->numTMs + 1 - sTMCaseDynamicResources->maxTMsShown;
+        if (sTMCaseStaticResources.scrollOffset + sTMCaseDynamicResources->maxTMsShown > sTMCaseDynamicResources->numTMs)
+            sTMCaseStaticResources.scrollOffset = sTMCaseDynamicResources->numTMs - sTMCaseDynamicResources->maxTMsShown;
     }
-    if (sTMCaseStaticResources.scrollOffset + sTMCaseStaticResources.selectedRow >= sTMCaseDynamicResources->numTMs + 1)
+    if (sTMCaseStaticResources.scrollOffset + sTMCaseStaticResources.selectedRow >= sTMCaseDynamicResources->numTMs)
     {
-        if (sTMCaseDynamicResources->numTMs + 1 < 2)
+        if (sTMCaseDynamicResources->numTMs < 2)
             sTMCaseStaticResources.selectedRow = 0;
         else
             sTMCaseStaticResources.selectedRow = sTMCaseDynamicResources->numTMs;
@@ -677,7 +679,7 @@ static void TMCaseSetup_UpdateVisualMenuOffset(void)
     u8 i;
     if (sTMCaseStaticResources.selectedRow > 3)
     {
-        for (i = 0; i <= sTMCaseStaticResources.selectedRow - 3 && sTMCaseStaticResources.scrollOffset + sTMCaseDynamicResources->maxTMsShown != sTMCaseDynamicResources->numTMs + 1; i++)
+        for (i = 0; i <= sTMCaseStaticResources.selectedRow - 3 && sTMCaseStaticResources.scrollOffset + sTMCaseDynamicResources->maxTMsShown != sTMCaseDynamicResources->numTMs; i++)
         {
             do {} while (0);
             sTMCaseStaticResources.selectedRow--;
@@ -859,36 +861,6 @@ static void TMHMContextMenuAction_Use(u8 taskId)
     }
 }
 
-static void TMHMContextMenuAction_Give(u8 taskId)
-{
-    s16 * data = gTasks[taskId].data;
-    u16 itemId = BagGetItemIdByPocketPosition(POCKET_TM_HM, data[1]);
-    RemoveTMContextMenu(&sTMCaseDynamicResources->contextMenuWindowId);
-    ClearStdWindowAndFrameToTransparent(2, 0);
-    ClearWindowTilemap(2);
-    PutWindowTilemap(1);
-    PutWindowTilemap(4);
-    PutWindowTilemap(5);
-    ScheduleBgCopyTilemapToVram(0);
-    ScheduleBgCopyTilemapToVram(1);
-    if (!ItemId_GetImportance(itemId))
-    {
-        if (CalculatePlayerPartyCount() == 0)
-        {
-            PrintError_ThereIsNoPokemon(taskId);
-        }
-        else
-        {
-            sTMCaseDynamicResources->savedCallback = CB2_ChooseMonToGiveItem;
-            Task_BeginFadeOutFromTMCase(taskId);
-        }
-    }
-    else
-    {
-        PrintError_ItemCantBeHeld(taskId);
-    }
-}
-
 static void PrintError_ThereIsNoPokemon(u8 taskId)
 {
     TMCase_PrintMessageWithFollowupTask(taskId, 2, gText_NoPokemon, Task_WaitButtonAfterErrorPrint);
@@ -948,15 +920,6 @@ static void Task_SelectTMAction_Type1(u8 taskId)
 {
     s16 * data = gTasks[taskId].data;
 
-    // if (!ItemId_GetImportance(BagGetItemIdByPocketPosition(POCKET_TM_HM, data[1])))
-    // {
-    //     sTMCaseDynamicResources->savedCallback = CB2_GiveHoldItem;
-    //     Task_BeginFadeOutFromTMCase(taskId);
-    // }
-    // else
-    // {
-    //     PrintError_ItemCantBeHeld(taskId);
-    // }
     PrintError_ItemCantBeHeld(taskId);
 }
 
@@ -974,172 +937,6 @@ static void Task_SelectTMAction_Type3(u8 taskId)
         PrintError_ItemCantBeHeld(taskId);
     }
 }
-
-/*
-static void Task_SelectTMAction_FromSellMenu(u8 taskId)
-{
-    s16 * data = gTasks[taskId].data;
-
-    if (itemid_get_market_price(gSpecialVar_ItemId) == 0)
-    {
-        CopyItemName(gSpecialVar_ItemId, gStringVar1);
-        StringExpandPlaceholders(gStringVar4, gText_CantBuyKeyItem);
-        TMCase_PrintMessageWithFollowupTask(taskId, GetDialogBoxFontId(), gStringVar4, Subtask_CloseContextMenuAndReturnToMain);
-    }
-    else
-    {
-        data[8] = 1;
-        if (data[2] == 1)
-        {
-            HandlePrintMoneyOnHand();
-            Task_AskConfirmSaleWithAmount(taskId);
-        }
-        else
-        {
-            if (data[2] > 99)
-                data[2] = 99;
-            CopyItemName(gSpecialVar_ItemId, gStringVar1);
-            StringExpandPlaceholders(gStringVar4, gText_HowManyToSell);
-            TMCase_PrintMessageWithFollowupTask(taskId, GetDialogBoxFontId(), gStringVar4, Task_InitQuantitySelectUI);
-        }
-    }
-}
-
-static void Task_AskConfirmSaleWithAmount(u8 taskId)
-{
-    s16 * data = gTasks[taskId].data;
-
-    ConvertIntToDecimalStringN(gStringVar3, itemid_get_market_price(BagGetItemIdByPocketPosition(POCKET_TM_HM, data[1])) / 2 * data[8], STR_CONV_MODE_LEFT_ALIGN, 6);
-    StringExpandPlaceholders(gStringVar4, gText_ICanPayVar1);
-    TMCase_PrintMessageWithFollowupTask(taskId, GetDialogBoxFontId(), gStringVar4, Task_PlaceYesNoBox);
-}
-
-static void Task_PlaceYesNoBox(u8 taskId)
-{
-    HandleCreateYesNoMenu(taskId, &sYesNoFuncTable);
-}
-
-static void Task_SaleOfTMsCanceled(u8 taskId)
-{
-    s16 * data = gTasks[taskId].data;
-
-    ClearStdWindowAndFrameToTransparent(8, 0);
-    ClearDialogWindowAndFrameToTransparent(6, 0);
-    PutWindowTilemap(0);
-    PutWindowTilemap(1);
-    PutWindowTilemap(3);
-    PutWindowTilemap(4);
-    PutWindowTilemap(5);
-    ScheduleBgCopyTilemapToVram(0);
-    ScheduleBgCopyTilemapToVram(1);
-    PrintListMenuCursorByID_WithColorIdx(data[0], 1);
-    Subtask_ReturnToTMCaseMain(taskId);
-}
-
-static void Task_InitQuantitySelectUI(u8 taskId)
-{
-    s16 * data = gTasks[taskId].data;
-
-    TMCase_SetWindowBorder1(7);
-    ConvertIntToDecimalStringN(gStringVar1, 1, STR_CONV_MODE_LEADING_ZEROS, 2);
-    StringExpandPlaceholders(gStringVar4, gText_TimesStrVar1);
-    AddTextPrinterParameterized_ColorByIndex(7, 0, gStringVar4, 4, 10, 1, 0, 0, 1);
-    SellTM_PrintQuantityAndSalePrice(1, itemid_get_market_price(BagGetItemIdByPocketPosition(POCKET_TM_HM, data[1])) / 2 * data[8]);
-    HandlePrintMoneyOnHand();
-    CreateTMCaseScrollIndicatorArrowPair_SellQuantitySelect();
-    ScheduleBgCopyTilemapToVram(0);
-    ScheduleBgCopyTilemapToVram(1);
-    gTasks[taskId].func = Task_QuantitySelect_HandleInput;
-}
-
-static void SellTM_PrintQuantityAndSalePrice(s16 quantity, s32 amount)
-{
-    FillWindowPixelBuffer(7, 0x11);
-    ConvertIntToDecimalStringN(gStringVar1, quantity, STR_CONV_MODE_LEADING_ZEROS, 2);
-    StringExpandPlaceholders(gStringVar4, gText_xVar1);
-    AddTextPrinterParameterized_ColorByIndex(7, 0, gStringVar4, 4, 10, 1, 0, 0, 1);
-    PrintMoneyAmount(7, 0x38, 0x0A, amount, 0);
-}
-
-static void Task_QuantitySelect_HandleInput(u8 taskId)
-{
-    s16 * data = gTasks[taskId].data;
-
-    if (AdjustQuantityAccordingToDPadInput(&data[8], data[2]) == 1)
-    {
-        SellTM_PrintQuantityAndSalePrice(data[8], itemid_get_market_price(BagGetItemIdByPocketPosition(POCKET_TM_HM, data[1])) / 2 * data[8]);
-    }
-    else if (JOY_NEW(A_BUTTON))
-    {
-        PlaySE(SE_SELECT);
-        ClearStdWindowAndFrameToTransparent(7, 0);
-        ScheduleBgCopyTilemapToVram(0);
-        ScheduleBgCopyTilemapToVram(1);
-        RemoveTMCaseScrollIndicatorArrowPair();
-        Task_AskConfirmSaleWithAmount(taskId);
-    }
-    else if (JOY_NEW(B_BUTTON))
-    {
-        PlaySE(SE_SELECT);
-        ClearStdWindowAndFrameToTransparent(7, 0);
-        ClearStdWindowAndFrameToTransparent(8, 0);
-        ClearDialogWindowAndFrameToTransparent(6, 0);
-        PutWindowTilemap(3);
-        PutWindowTilemap(0);
-        PutWindowTilemap(1);
-        ScheduleBgCopyTilemapToVram(0);
-        ScheduleBgCopyTilemapToVram(1);
-        RemoveTMCaseScrollIndicatorArrowPair();
-        PrintListMenuCursorByID_WithColorIdx(data[0], 1);
-        Subtask_ReturnToTMCaseMain(taskId);
-    }
-}
-
-static void Task_PrintSaleConfirmedText(u8 taskId)
-{
-    s16 * data = gTasks[taskId].data;
-
-    PutWindowTilemap(0);
-    ScheduleBgCopyTilemapToVram(0);
-    CopyItemName(gSpecialVar_ItemId, gStringVar1);
-    ConvertIntToDecimalStringN(gStringVar3, itemid_get_market_price(BagGetItemIdByPocketPosition(POCKET_TM_HM, data[1])) / 2 * data[8], STR_CONV_MODE_LEFT_ALIGN, 6);
-    StringExpandPlaceholders(gStringVar4, gText_TurnedOverVar1ForVar2);
-    TMCase_PrintMessageWithFollowupTask(taskId, 2, gStringVar4, Task_DoSaleOfTMs);
-}
-
-static void Task_DoSaleOfTMs(u8 taskId)
-{
-    s16 * data = gTasks[taskId].data;
-
-    PlaySE(SE_SHOP);
-    RemoveBagItem(gSpecialVar_ItemId, data[8]);
-    AddMoney(&gSaveBlock1Ptr->money, itemid_get_market_price(gSpecialVar_ItemId) / 2 * data[8]);
-    RecordItemPurchase(gSpecialVar_ItemId, data[8], 2);
-    DestroyListMenuTask(data[0], &sTMCaseStaticResources.scrollOffset, &sTMCaseStaticResources.selectedRow);
-    TMCaseSetup_GetTMCount();
-    TMCaseSetup_InitListMenuPositions();
-    InitTMCaseListMenuItems();
-    data[0] = ListMenuInit(&gMultiuseListMenuTemplate, sTMCaseStaticResources.scrollOffset, sTMCaseStaticResources.selectedRow);
-    PrintListMenuCursorByID_WithColorIdx(data[0], 2);
-    PrintMoneyAmountInMoneyBox(8, GetMoney(&gSaveBlock1Ptr->money), 0);
-    gTasks[taskId].func = Task_AfterSale_ReturnToList;
-}
-
-static void Task_AfterSale_ReturnToList(u8 taskId)
-{
-    if (JOY_NEW(A_BUTTON) || JOY_NEW(B_BUTTON))
-    {
-        PlaySE(SE_SELECT);
-        ClearStdWindowAndFrameToTransparent(8, 0);
-        ClearDialogWindowAndFrameToTransparent(6, 0);
-        PutWindowTilemap(1);
-        PutWindowTilemap(3);
-        PutWindowTilemap(4);
-        PutWindowTilemap(5);
-        Subtask_CloseContextMenuAndReturnToMain(taskId);
-    }
-}
-*/
 
 static void InitWindowTemplatesAndPals(void)
 {
@@ -1198,17 +995,17 @@ static void PrintStringTMCaseOnWindow3(void)
 
 static void DrawMoveInfoUIMarkers(void)
 {
-#ifndef POKEMON_EXPANSION
-    BlitMenuInfoIcon(4, 19, 0, 0); // "Type" sprite
-    BlitMenuInfoIcon(4, 20, 0, 12); // "Power" sprite
-    BlitMenuInfoIcon(4, 21, 0, 24); // "Accuracy" sprite
-    BlitMenuInfoIcon(4, 22, 0, 36); // "PP" sprite
-#else
-    BlitMenuInfoIcon(4, 20, 0, 0); // "Type" sprite
-    BlitMenuInfoIcon(4, 21, 0, 12); // "Power" sprite
-    BlitMenuInfoIcon(4, 22, 0, 24); // "Accuracy" sprite
-    BlitMenuInfoIcon(4, 23, 0, 36); // "PP" sprite
-#endif
+    #ifndef POKEMON_EXPANSION
+        BlitMenuInfoIcon(4, 19, 0, 0); // "Type" sprite
+        BlitMenuInfoIcon(4, 20, 0, 12); // "Power" sprite
+        BlitMenuInfoIcon(4, 21, 0, 24); // "Accuracy" sprite
+        BlitMenuInfoIcon(4, 22, 0, 36); // "PP" sprite
+    #else
+        BlitMenuInfoIcon(4, 20, 0, 0); // "Type" sprite
+        BlitMenuInfoIcon(4, 21, 0, 12); // "Power" sprite
+        BlitMenuInfoIcon(4, 22, 0, 24); // "Accuracy" sprite
+        BlitMenuInfoIcon(4, 23, 0, 36); // "PP" sprite
+    #endif
     CopyWindowToVram(4, 2);
 }
 
@@ -1288,111 +1085,109 @@ static void RemoveTMContextMenu(u8 * a0)
     *a0 = 0xFF;
 }
 
-static u8 CreateTMSprite(u16 itemId)
+#define sMonIconStill data[3]
+static void SpriteCb_MonIcon(struct Sprite *sprite)
 {
-    u8 spriteId = CreateSprite(&sTMSpriteTemplate, 0x29, 0x2E, 0);
-    u8 r5;
-    if (itemId == ITEM_NONE)
-    {
-        UpdateTMSpritePosition(&gSprites[spriteId], 0xFF);
-        return spriteId;
-    }
-    else
-    {
-        r5 = itemId - 33;
-        SetTMSpriteAnim(&gSprites[spriteId], r5);
-        TintTMSpriteByType(gBattleMoves[ItemIdToBattleMoveId(itemId)].type);
-        UpdateTMSpritePosition(&gSprites[spriteId], r5);
-        return spriteId;
-    }
+    if (!sprite->sMonIconStill)
+        UpdateMonIconFrame(sprite);
 }
+#undef sMonIconStill
 
-static void SetTMSpriteAnim(struct Sprite * sprite, u8 idx)
-{
-    if (idx >= 50)
-        StartSpriteAnim(sprite, 1);
-    else
-        StartSpriteAnim(sprite, 0);
-}
+#define MON_ICON_START_X  0x10
+#define MON_ICON_START_Y  0x2a
+#define MON_ICON_PADDING  0x20
 
-static void TintTMSpriteByType(u8 type)
+
+void LoadMonIconPalettesTinted(void)
 {
-    u8 palIndex = IndexOfSpritePaletteTag(TM_CASE_TM_TAG) << 4;
-    LoadPalette(sTMSpritePaletteBuffer + sTMSpritePaletteOffsetByType[type], 0x100 | palIndex, 0x20);
-    if (sTMCaseStaticResources.tmCaseMenuType == 4)
+    u8 i;
+    for (i = 0; i < ARRAY_COUNT(gMonIconPaletteTable); i++)
     {
-        BlendPalettes(1 << (0x10 + palIndex), 4, RGB_BLACK);
+        LoadSpritePalette(&gMonIconPaletteTable[i]);
+        TintPalette_GrayScale2(&gPlttBufferUnfaded[0x170 + i*16], 16);
     }
 }
+        
 
-static void UpdateTMSpritePosition(struct Sprite * sprite, u8 var)
+static void DrawPartyMonIcons(void)
 {
-    s32 x, y;
-    if (var == 0xFF)
-    {
-        x = 0x1B;
-        y = 0x36;
-        sprite->y2 = 0x14;
-    }
-    else
-    {
-        if (var >= 50)
-            var -= 50;
-        else
-            var += 8;
-        x = 0x29 - (((0xE00 * var) / 58) >> 8);
-        y = 0x2E + (((0x800 * var) / 58) >> 8);
-    }
-    sprite->x = x;
-    sprite->y = y;
-}
+    u8 i;
+    u16 species;
+    u8 icon_x = 0;
+    u8 icon_y = 0;
 
-static void InitSelectedTMSpriteData(u8 spriteId, u16 itemId)
-{
-    gSprites[spriteId].data[0] = itemId;
-    gSprites[spriteId].data[1] = 0;
-    gSprites[spriteId].callback = SpriteCB_MoveTMSpriteInCase;
-}
+    LoadMonIconPalettesTinted();
 
-static void SpriteCB_MoveTMSpriteInCase(struct Sprite * sprite)
-{
-    switch (sprite->data[1])
+    for (i = 0; i < gPlayerPartyCount; i++)
     {
-    case 0:
-        if (sprite->y2 >= 20)
+        //calc icon position (centered)
+        if (gPlayerPartyCount == 1)
         {
-            if (sprite->data[0] != ITEM_NONE)
-            {
-                sprite->data[1]++;
-                TintTMSpriteByType(gBattleMoves[ItemIdToBattleMoveId(sprite->data[0])].type);
-                sprite->data[0] -= ITEM_TM01;
-                SetTMSpriteAnim(sprite, sprite->data[0]);
-                UpdateTMSpritePosition(sprite, sprite->data[0]);
-            }
-            else
-                sprite->callback = SpriteCallbackDummy;
+            icon_x = MON_ICON_START_X + MON_ICON_PADDING;
+            icon_y = MON_ICON_START_Y + MON_ICON_PADDING*0.5;
+        }
+        else if (gPlayerPartyCount == 2)
+        {
+            icon_x = i < 2 ? MON_ICON_START_X + MON_ICON_PADDING*0.5 + MON_ICON_PADDING * i : MON_ICON_START_X + MON_ICON_PADDING*0.5 + MON_ICON_PADDING * (i - 2);
+            icon_y = MON_ICON_START_Y + MON_ICON_PADDING*0.5;
+        }else if (gPlayerPartyCount == 3)
+        {
+            icon_x = i < 3 ? MON_ICON_START_X + MON_ICON_PADDING * i : MON_ICON_START_X + MON_ICON_PADDING * (i - 3);
+            icon_y = MON_ICON_START_Y + MON_ICON_PADDING*0.5;
+        }
+        else if (gPlayerPartyCount == 4)
+        {
+            icon_x = i < 2 ? MON_ICON_START_X + MON_ICON_PADDING*0.5 + MON_ICON_PADDING * i : MON_ICON_START_X + MON_ICON_PADDING*0.5 + MON_ICON_PADDING * (i - 2);
+            icon_y = i < 2 ? MON_ICON_START_Y : MON_ICON_START_Y + MON_ICON_PADDING;
         }
         else
         {
-            sprite->y2 += 10;
+            icon_x = i < 3 ? MON_ICON_START_X + MON_ICON_PADDING * i : MON_ICON_START_X + MON_ICON_PADDING * (i - 3);
+            icon_y = i < 3 ? MON_ICON_START_Y : MON_ICON_START_Y + MON_ICON_PADDING;
         }
-        break;
-    case 1:
-        if (sprite->y2 <= 0)
-            sprite->callback = SpriteCallbackDummy;
-        else
-            sprite->y2 -= 10;
+        //get species
+        species = GetMonData(&gPlayerParty[i], MON_DATA_SPECIES);
+
+        //create icon sprite
+        #ifndef POKEMON_EXPANSION
+            spriteIdData[i] = CreateMonIcon(species, SpriteCb_MonIcon, icon_x, icon_y, 1, GetMonData(&gPlayerParty[0], MON_DATA_PERSONALITY), TRUE);
+        #else
+            spriteIdData[i] = CreateMonIcon(species, SpriteCb_MonIcon, icon_x, icon_y, 1, GetMonData(&gPlayerParty[0], MON_DATA_PERSONALITY));
+        #endif
+
+        //Set priority, stop movement and save original palette position
+        gSprites[spriteIdData[i]].oam.priority = 0;
+        StartSpriteAnim(&gSprites[spriteIdData[i]], 4); //full stop
+        spriteIdPalette[i] = gSprites[spriteIdData[i]].oam.paletteNum; //save correct palette number to array
     }
 }
 
-static void LoadTMTypePalettes(void)
+static void TintPartyMonIcons(u8 tm)
 {
-    struct SpritePalette spritePalette;
+    u8 i;
+    u16 species;
 
-    sTMSpritePaletteBuffer = Alloc(0x110 * sizeof(u16));
-    LZDecompressWram(gUnknown_8E84F20, sTMSpritePaletteBuffer);
-    LZDecompressWram(gUnknown_8E85068, sTMSpritePaletteBuffer + 0x100);
-    spritePalette.data = sTMSpritePaletteBuffer + 0x110;
-    spritePalette.tag = TM_CASE_TM_TAG;
-    LoadSpritePalette(&spritePalette);
+    for (i = 0; i < gPlayerPartyCount; i++)
+    {
+        species = GetMonData(&gPlayerParty[i], MON_DATA_SPECIES);
+        if (!CanSpeciesLearnTMHM(species, tm))
+        {
+            gSprites[spriteIdData[i]].oam.paletteNum = 7 + spriteIdPalette[i];
+        }
+        else
+        {
+            gSprites[spriteIdData[i]].oam.paletteNum = spriteIdPalette[i];//gMonIconPaletteIndices[species];
+        }
+    }
+    
+}
+
+static void DestroyPartyMonIcons(void)
+{
+    u8 i;
+    for (i = 0; i < gPlayerPartyCount; i++)
+    {
+        FreeAndDestroyMonIconSprite(&gSprites[spriteIdData[i]]);
+        FreeMonIconPalettes();
+    }
 }
