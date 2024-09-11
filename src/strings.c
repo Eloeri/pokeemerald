@@ -1831,3 +1831,4 @@ const u8 gText_TMCaseWillBePutAway[] =  _("The TM CASE will be\nput away.");
 const u8 gText_FontSmall[] =            _("{FONT_SMALL}");
 const u8 gText_FontShort[] =            _("{FONT_SHORT}");
 const u8 gText_TMCase_Blue[] =          _("{COLOR_HIGHLIGHT_SHADOW BLUE TRANSPARENT LIGHT_BLUE}{STR_VAR_2}");
+const u8 gText_AshQty[] = _("ASH QTY:\n{STR_VAR_1}{PAUSE_UNTIL_PRESS}");
