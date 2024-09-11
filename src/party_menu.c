@@ -6502,8 +6502,7 @@ void CursorCb_MoveItemCallback(u8 taskId)
             PlaySE(SE_FAILURE);
             return;
         }
-		
-		if(GetMonData(&gPlayerParty[gPartyMenu.slotId2], MON_DATA_HELD_ITEM) >= ITEM_ORANGE_MAIL
+                if(GetMonData(&gPlayerParty[gPartyMenu.slotId2], MON_DATA_HELD_ITEM) >= ITEM_ORANGE_MAIL
         && GetMonData(&gPlayerParty[gPartyMenu.slotId2], MON_DATA_HELD_ITEM) <= ITEM_RETRO_MAIL)
         {
             PlaySE(SE_FAILURE);
@@ -6554,9 +6553,10 @@ void CursorCb_MoveItemCallback(u8 taskId)
         // display the string
         DisplayPartyMenuMessage(gStringVar4, TRUE);
 
-        // update colors of selected boxes
-        AnimatePartySlot(gPartyMenu.slotId2, 0);
-        AnimatePartySlot(gPartyMenu.slotId, 1);
+        // update colors of selected boxes, move selection cursor to second mon
+        AnimatePartySlot(gPartyMenu.slotId, 0);
+        gPartyMenu.slotId = gPartyMenu.slotId2;
+        AnimatePartySlot(gPartyMenu.slotId2, 1);
 
         // return to the main party menu
         ScheduleBgCopyTilemapToVram(2);
