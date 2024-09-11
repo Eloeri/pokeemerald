@@ -1788,7 +1788,7 @@ static bool32 HasAtLeastFiveBadges(void)
     return FALSE;
 }
 
-#define STEP_COUNTER_MAX 255
+#define STEP_COUNTER_MAX 5
 
 void IncrementRematchStepCounter(void)
 {
