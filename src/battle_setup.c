@@ -1616,7 +1616,7 @@ static bool32 UpdateRandomTrainerRematches(const struct RematchTrainer *table, u
                 ret = TRUE;
             }
             else if (FlagGet(TRAINER_REGISTERED_FLAGS_START + i)
-             && (Random() % 100) <= 30)  // 31% chance of getting a rematch.
+             && (Random() % 100) <= 99)  // 31% chance of getting a rematch.
             {
                 SetRematchIdForTrainer(table, i);
                 ret = TRUE;
@@ -1780,7 +1780,7 @@ static bool32 HasAtLeastFiveBadges(void)
     {
         if (FlagGet(sBadgeFlags[i]) == TRUE)
         {
-            if (++count >= 5)
+            if (++count >= 1)
                 return TRUE;
         }
     }
