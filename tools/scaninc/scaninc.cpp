@@ -125,7 +125,12 @@ int main(int argc, char **argv)
             if (!exists && (file.FileType() == SourceFileType::Asm || file.FileType() == SourceFileType::Inc))
             {
                 path = include;
+                if (CanOpenFile(path))
+                    exists = true;
             }
+            if (!exists)
+                continue;
+
             dependencies_includes.insert(path);
             bool inserted = dependencies.insert(path).second;
             if (inserted && exists)
@@ -152,19 +157,29 @@ int main(int argc, char **argv)
         // Print a make rule for the object file
         size_t ext_pos = make_outfile.find_last_of(".");
         auto object_file = make_outfile.substr(0, ext_pos + 1) + "o";
-        output << object_file.c_str() << ": ";
+        output << object_file.c_str() << ":";
         for (const std::string &path : dependencies)
         {
-            output << path << " ";
+            output << " " << path;
         }
+        output << '\n';
 
         // Dependency list rule.
         // Although these rules are identical, they need to be separate, else make will trigger the rule again after the file is created for the first time.
-        output << "\n" << make_outfile.c_str() << ": ";
+        output << make_outfile.c_str() << ":";
         for (const std::string &path : dependencies_includes)
         {
-            output << path << " ";
+            output << " " << path;
         }
+        output << '\n';
+
+        // Dummy rules
+        // If a dependency is deleted, make will try to make it, instead of rescanning the dependencies before trying to do that.
+        for (const std::string &path : dependencies)
+        {
+            output << path << ":\n";
+        }
+
         output.flush();
         output.close();
     }

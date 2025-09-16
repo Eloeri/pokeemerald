@@ -39,3 +39,5 @@ prefabs.json
 *.sym
 *.js
 *.stackdump
+/pokeemerald-*.png
+/pokeemerald_modern-*.png
