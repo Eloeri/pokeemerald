@@ -3562,8 +3562,8 @@ static s8 CompareItemsAlphabetically(struct ItemSlot* itemSlot1, struct ItemSlot
     else if (item2 == ITEM_NONE)
         return -1;
 
-    name1 = ItemId_GetName(item1);
-    name2 = ItemId_GetName(item2);
+    name1 = GetItemName(item1);
+    name2 = GetItemName(item2);
 
     for (i = 0; ; ++i)
     {
