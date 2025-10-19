@@ -492,10 +492,7 @@ static bool8 DoMassOutbreakEncounterTest(void)
 
 static bool8 EncounterOddsCheck(u16 encounterRate)
 {
-    if (Random() % MAX_ENCOUNTER_RATE < encounterRate)
-        return TRUE;
-    else
-        return FALSE;
+    return TRUE;
 }
 
 // Returns true if it will try to create a wild encounter.
