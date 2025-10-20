@@ -1176,12 +1176,8 @@ static u16 RenderText(struct TextPrinter *textPrinter)
             else
                 textPrinter->printerTemplate.currentX += gCurGlyph.width;
         }
-        repeats--;
-
-     } while (repeats > 0);
-
-        return RENDER_PRINT;
-
+        repeats++;
+        } while (repeats > 0);
         return RENDER_PRINT;
     case RENDER_STATE_WAIT:
         if (TextPrinterWait(textPrinter))
