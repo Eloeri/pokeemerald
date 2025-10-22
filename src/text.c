@@ -872,7 +872,7 @@ bool16 TextPrinterWaitWithDownArrow(struct TextPrinter *textPrinter)
     else
     {
         TextPrinterDrawDownArrow(textPrinter);
-        if (JOY_HELD(A_BUTTON | B_BUTTON))
+        if (JOY_NEW(A_BUTTON | B_BUTTON))
         {
             result = TRUE;
             PlaySE(SE_SELECT);
@@ -890,7 +890,7 @@ bool16 TextPrinterWait(struct TextPrinter *textPrinter)
     }
     else
     {
-        if (JOY_HELD(A_BUTTON | B_BUTTON))
+        if (JOY_NEW(A_BUTTON | B_BUTTON))
         {
             result = TRUE;
             PlaySE(SE_SELECT);
@@ -947,7 +947,7 @@ static u16 RenderText(struct TextPrinter *textPrinter)
         if (textPrinter->delayCounter && textPrinter->textSpeed)
         {
             textPrinter->delayCounter--;
-            if (gTextFlags.canABSpeedUpPrint && (JOY_HELD(A_BUTTON | B_BUTTON)))
+            if (gTextFlags.canABSpeedUpPrint && (JOY_NEW(A_BUTTON | B_BUTTON)))
             {
                 subStruct->hasPrintBeenSpedUp = TRUE;
                 textPrinter->delayCounter = 0;
