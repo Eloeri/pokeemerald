@@ -1840,7 +1840,7 @@ bool8 ShouldTryRematchBattle(void)
 
 bool8 IsTrainerReadyForRematch(void)
 {
-    return IsTrainerReadyForRematch_(gRematchTable, gTrainerBattleOpponent_A);
+    return TRUE
 }
 
 static void HandleRematchVarsOnBattleEnd(void)
